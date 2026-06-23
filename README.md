@@ -1,0 +1,139 @@
+# Multi-Agent Customer Support Router & Responder System
+
+An intelligent, production-ready customer support agent system powered by **LangGraph**, **LangChain**, and **Llama 3** (via Groq Cloud API or locally hosted Ollama). 
+
+This system uses a structured multi-agent architecture to classify incoming user requests, retrieve exact support documentation, generate empathetic responses, evaluate response quality, and automatically escalate issues to human support teams with computed SLAs when necessary.
+
+---
+
+## 🏗️ System Architecture
+
+The workflow is designed as a stateful graph where information flows dynamically between specialized agents. Below is the visualization of the LangGraph execution flow:
+
+```mermaid
+graph TD
+    Start([User Query]) --> Classify[1. Classifier Agent]
+    Classify --> Retrieve[2. Retriever Agent]
+    Retrieve --> Respond[3. Responder Agent]
+    Respond --> Critic[4. Critic Agent]
+    
+    Critic -->|Accept| End([End: Deliver Answer])
+    Critic -->|Regenerate & Retry < Max| Respond
+    Critic -->|Escalate / Low Confidence / Max Retries| Escalate[5. Escalation Agent]
+    
+    Escalate --> EndEscalate([End: Created Ticket / SLA])
+    
+    style Start fill:#4F46E5,stroke:#312E81,stroke-width:2px,color:#fff
+    style End fill:#10B981,stroke:#065F46,stroke-width:2px,color:#fff
+    style EndEscalate fill:#F59E0B,stroke:#92400E,stroke-width:2px,color:#fff
+```
+
+---
+
+## 🤖 Meet the Agents
+
+Each node in the support graph represents a decoupled agent acting upon the shared `SupportState`:
+
+1. **Classifier Agent (`agents/classifier.py`)**: 
+   - Uses structured outputs to categorize the query into `billing`, `technical`, `delivery`, or `general`.
+   - Extracts specific intents (e.g. `double_charge`, `reset_password`, `order_not_arrived`) and key entities (e.g. emails, order IDs).
+2. **Retriever Agent (`agents/retriever.py`)**:
+   - Performs a multi-level lookup (Exact Match -> Substring Word Overlap -> General Fallback) against a mock knowledge base (`kb.json`).
+   - Flags responses as `low_confidence` if they rely on general fallback policies.
+3. **Responder Agent (`agents/responder.py`)**:
+   - Synthesizes a warm, polite response based strictly on the retrieved context.
+   - Dynamically appends critique feedback on retries to self-correct during regeneration loops.
+4. **Critic Agent (`agents/critic.py`)**:
+   - Evaluates response quality based on **Correctness** (factual grounding), **Completeness** (addresses all points), and **Tone** (empathy and warmth).
+   - Routes to `accept`, `regenerate` (triggers a retry), or `escalate` (immediate hand-off).
+5. **Escalator Agent (`agents/escalator.py`)**:
+   - Processes unresolved issues.
+   - Auto-assigns priority (`HIGH`, `MEDIUM`, `LOW`), routes to specialized internal teams, computes SLA resolution windows, and provides the customer a secure Ticket Reference ID.
+
+---
+
+## 📁 Repository Structure
+
+```text
+customer_support/
+├── .gitignore                      # Git exclusion rules (e.g., env variables, pycache)
+├── README.md                       # Documentation (This file)
+└── multi_agent_support/
+    ├── main.py                     # Demo entrypoint containing test cases
+    ├── graph.py                    # LangGraph configuration and routing logic
+    ├── state.py                    # SupportState TypedDict definitions
+    ├── requirements.txt            # Python dependencies
+    ├── agents/
+    │   ├── __init__.py
+    │   ├── classifier.py           # Structured classification & entity extraction
+    │   ├── retriever.py            # Local knowledge retrieval logic
+    │   ├── responder.py            # Empathy-focused response generator
+    │   ├── critic.py               # Llama3-based response quality assurance
+    │   └── escalator.py            # SLA computation and ticketing logic
+    ├── knowledge_base/
+    │   └── kb.json                 # Mock support knowledge base (billing, tech, delivery)
+    └── utils/
+        ├── __init__.py
+        └── llm.py                  # Dual LLM provider configuration (Groq / Ollama)
+```
+
+---
+
+## 🚀 Setup & Installation
+
+### 1. Prerequisites
+- **Python 3.10+** installed.
+- (Optional) **Ollama** installed locally for running Llama 3 without API keys, OR a **Groq API Key**.
+
+### 2. Install Dependencies
+Create a virtual environment and install the required libraries:
+
+```bash
+# Navigate to the project directory
+cd customer_support/multi_agent_support
+
+# Create and activate a virtual environment
+python -m venv venv
+# On Windows (cmd):
+venv\Scripts\activate
+# On Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install requirements
+pip install -r requirements.txt
+```
+
+### 3. Configure Environment Variables
+Create a `.env` file in the `multi_agent_support/` directory:
+
+```bash
+# In customer_support/multi_agent_support/.env
+GROQ_API_KEY=your_groq_api_key_here
+```
+> **Note**: If `GROQ_API_KEY` is not present, the system will automatically fall back to using a local Ollama instance running `llama3`. Ensure your local Ollama server is running (`ollama run llama3`) if you are using this mode.
+
+---
+
+## 💻 Running the Demo
+
+Run the main demo script to see the graph execute different queries in real time.
+
+```bash
+python main.py
+```
+
+### What happens behind the scenes:
+The demo feeds a set of sample queries representing various support scenarios:
+* **Billing issues** (e.g. *"I was charged twice"*): Routes through classification, fetches billing docs, passes quality checks, and returns a response.
+* **Technical queries** (e.g. *"How do I reset my password"*): Staged, retrieved, answered, and accepted.
+* **Off-topic or unrecognized queries** (e.g. *"What is your business address?"*): Triggers a general fallback, gets flagged as low-confidence, and routes instantly to the **Escalator Agent** to create a ticket.
+* **Complex retries**: Demonstrates the graph self-correcting when the Critic Agent requests a retry.
+
+---
+
+## 🔒 Configuration & Customization
+- **Maximum Retries**: Adjust `max_retries` inside the initial state inside [main.py](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/main.py) to control how many times the Responder tries to satisfy the Critic before escalating.
+- **Knowledge Base**: Add new Q&As inside [kb.json](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/knowledge_base/kb.json) to expand the system's capabilities.
+- **Model Adjustments**: Change temperature configurations or underlying models inside [llm.py](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/utils/llm.py).
