@@ -1,0 +1,23 @@
+{
+  "billing": {
+    "double_charge": "If you have been charged twice for your subscription, please check if you have multiple active accounts. If only one account exists, it may be a temporary pre-authorization hold which will drop off in 3-5 business days. If both charges have settled, we will process a refund for the duplicate charge within 5-7 business days.",
+    "refund_request": "We offer a 30-day money-back guarantee for all new subscriptions. Refund requests can be processed if submitted within 30 days of purchase. Once approved, refunds are credited back to the original payment method within 5-7 business days.",
+    "invoice_request": "Invoices are automatically generated and sent to your registered email address at the start of each billing cycle. You can also view, download, or print all invoices directly from your Billing Portal under the 'Payment History' section.",
+    "cancel_subscription": "To cancel your subscription, go to your Account Settings, select 'Billing', and click 'Cancel Subscription'. Your cancellation will take effect at the end of the current billing period, and you will retain access until then."
+  },
+  "technical": {
+    "reset_password": "To reset your password, click the 'Forgot Password' link on the login page. Enter your email to receive a password reset link valid for 15 minutes. Click the link and enter a new password that contains at least 8 characters, one number, and one special character.",
+    "account_locked": "Accounts are locked after 5 consecutive failed login attempts to prevent unauthorized access. The lock is temporary and will release automatically after 30 minutes. To unlock immediately, use the self-service 'Unlock Account' link sent to your registered email.",
+    "app_crash": "If the app is crashing, please try the following troubleshooting steps: 1) Ensure you are running the latest version of the app. 2) Clear the application cache/data in your device settings. 3) Re-install the app. If the crash persists, email support with your device model and app version.",
+    "login_issue": "If you are having trouble logging in, please verify your credentials. Ensure Caps Lock is off, check that you are using the correct email, and make sure your internet connection is active. You can also try clearing your browser cookies and cache."
+  },
+  "delivery": {
+    "order_not_arrived": "If your order has not arrived within 3 days of the expected delivery date, check the tracking link in your shipping confirmation email. If there has been no tracking update for 48 hours, contact carrier support or let us know so we can file a carrier trace.",
+    "wrong_item": "If you received the wrong item, please keep the item and packaging. Contact customer support within 7 days of delivery with your order number and photos of the incorrect item. We will ship the correct item and send you a prepaid return shipping label.",
+    "damaged_item": "If your item arrived damaged, please take photos of the damaged item and the shipping box. Submit these photos along with your order number to customer support within 48 hours of delivery. We will arrange a replacement or refund immediately.",
+    "tracking_request": "You can track your package using the tracking number sent in your shipping confirmation email. Click the tracking link to see real-time updates from the carrier. If you did not receive a tracking email, check your spam folder or view order details in your account."
+  },
+  "general": {
+    "fallback": "Thank you for reaching out. We apologize, but we could not find a specific answer matching your exact request in our database. A customer support specialist has been notified and will review your query to assist you further."
+  }
+}
