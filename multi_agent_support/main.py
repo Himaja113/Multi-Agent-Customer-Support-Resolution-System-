@@ -22,7 +22,7 @@ def run_demo():
     # Check that we have a model API key or Ollama set up
     has_groq = bool(os.environ.get("GROQ_API_KEY"))
     if has_groq:
-        print("[LLM Backend] Using cloud-hosted Groq (Llama 3 8B) for fast, key-based execution.")
+        print("[LLM Backend] Using Groq (Llama 3 8B) for fast, key-based execution.")
     else:
         print("[LLM Backend] GROQ_API_KEY not found. Attempting local Ollama (Llama 3) connection.")
     print("="*70)

@@ -160,3 +160,81 @@ The demo feeds a set of sample queries representing various support scenarios:
 - **Maximum Retries**: Adjust `max_retries` inside the initial state inside [main.py](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/main.py) to control how many times the Responder tries to satisfy the Critic before escalating.
 - **Knowledge Base**: Add new Q&As inside [kb.json](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/knowledge_base/kb.json) to expand the system's capabilities.
 - **Model Adjustments**: Change temperature configurations or underlying models inside [llm.py](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/utils/llm.py).
+
+---
+
+## 🔮 Future Improvements: Production-Grade Upgrades
+
+The following upgrades document what the system would look like if built for real-world, production-grade use. Every upgrade listed here plugs into the same [SupportState](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/state.py) TypedDict and the same agent boundaries defined in the core plan, requiring only extension rather than redesign.
+
+### 1. Document Ingestion Pipeline
+Instead of a hand-crafted [kb.json](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/knowledge_base/kb.json), users upload PDFs, DOCX files, or images. The system converts them to structured text and populates the Knowledge Base automatically.
+
+#### Workflow Diagram
+```mermaid
+graph TD
+    Upload[Uploaded File: PDF / DOCX / Image] --> Docling[Docling: Primary PDF Converter]
+    Docling --> Unstructured[Unstructured.io: Fallback for HTML, DOCX, scanned images]
+    Unstructured --> Cleaner[Markdown Cleaner: Normalize formatting]
+    Cleaner --> Chunker[Chunker: 300-500 tokens with 50-token overlap]
+    Chunker --> VectorStore[Vector Knowledge Base: Store chunks with metadata]
+```
+
+* **Why Docling**: Purpose-built for PDF extraction. Handles complex layouts (tables, multi-column text, headers) and outputs clean Markdown that is easy for LLMs to process. Better than PyMuPDF for structured documents.
+* **Why Unstructured.io as fallback**: Handles the widest range of formats (HTML, DOCX, images, emails). Docling is better for PDFs specifically, but Unstructured covers everything else.
+* **Why chunking matters**: Storing full documents makes retrieval return too much irrelevant content. 300–500 token chunks with overlap ensure the retrieved context is focused and relevant. The overlap prevents answers from being split across chunk boundaries.
+
+### 2. Vector Knowledge Base
+[kb.json](file:///c:/Users/USER/Desktop/customer_support/multi_agent_support/knowledge_base/kb.json) is replaced by ChromaDB — a local vector database that stores both text chunks and their embeddings. A JSON file is kept as a human-readable mirror for debugging.
+
+#### Chunk Structure
+```json
+{
+  "chunk_id":  "doc1_chunk_3",
+  "source":    "billing_policy.pdf",
+  "category":  "billing",
+  "content":   "If a customer is charged twice...",
+  "embedding": [0.23, 0.11, "..."],
+  "metadata":  { "page": 2, "section": "Refund Policy" }
+}
+```
+
+* **Why ChromaDB**: Runs locally with no server required. Stores both vectors and metadata. Supports similarity search out of the box. No infrastructure overhead — it is a Python library that writes to a local directory.
+* **Why keep a JSON mirror**: The vector DB is not human-readable. A parallel JSON file lets you inspect, edit, and debug the KB without querying the vector DB. During development this saves significant time.
+
+### 3. Hybrid Retrieval
+The simple JSON key lookup is replaced by a three-layer retrieval pipeline combining keyword search, semantic search, and LLM reranking.
+
+#### Workflow Diagram
+```mermaid
+graph TD
+    Query[User Query] --> BM25[BM25 Keyword Search: Exact terms, IDs, rare words]
+    Query --> VectorSearch[Embedding Similarity Search: ChromaDB - Synonyms, paraphrases]
+    BM25 --> RRF[RRF Score Fusion: Merge both ranked lists]
+    VectorSearch --> RRF
+    RRF --> Reranker[CrossEncoder Reranker: Re-scores top 10 results]
+    Reranker --> FinalChunks[Top 3-5 Chunks passed to Responder]
+```
+
+#### Tools Mapping
+| Component | Tool / Library |
+| :--- | :--- |
+| **BM25** | `rank_bm25` Python library |
+| **Embedding search** | ChromaDB + `sentence-transformers` |
+| **Score fusion** | Reciprocal Rank Fusion (RRF) |
+| **Reranker** | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
+
+* **Why BM25 + embeddings together**: BM25 is excellent for exact terms — order IDs, error codes, specific product names. Embeddings handle semantic meaning — "billed two times" finding "double charge". Neither alone is as good as both together.
+* **Why RRF for fusion**: Reciprocal Rank Fusion merges two ranked lists without needing to tune weights or normalize scores. It is simple, well-studied, and consistently outperforms weighted score averaging in practice.
+* **Why a CrossEncoder reranker**: The BM25 and embedding searches return candidates. The CrossEncoder reads the query and each candidate together and produces a precise relevance score. This final re-scoring step is where the most retrieval quality improvement comes from.
+
+### 4. Conversation Memory
+The system handles multi-turn conversations instead of isolated single queries.
+
+* **State updates**:
+  ```python
+  conversation_history: List[dict]  # List of {"role": role, "content": content} pairs
+  ```
+* **Intent Classifier**: Uses the last *N* turns to resolve references (e.g. *"what about that charge?"* is resolved to the double billing topic from two messages ago).
+* **Responder context**: Receives full conversation context to refer back to previous answers and avoid repeating information already given.
+* **Memory window**: Keep the last 5–10 turns to avoid exceeding LLM context limits. Older turns are summarized and compressed rather than being dropped entirely, ensuring no critical information is lost.
